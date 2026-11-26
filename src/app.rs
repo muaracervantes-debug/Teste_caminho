@@ -43,15 +43,19 @@ impl ApplicationHandler for App {
             }
         };
 
+        // Mantem a janela aberta se a inicializacao grafica falhar, para que
+        // a mensagem de erro possa ser consultada no terminal em vez de a
+        // aplicacao simplesmente abrir e fechar.
+        self.window = Some(window.clone());
+
         match pollster::block_on(Renderer::new(window.clone())) {
             Ok(renderer) => {
-                self.window = Some(window.clone());
                 self.renderer = Some(renderer);
                 window.request_redraw();
             }
             Err(error) => {
                 eprintln!("Falha ao inicializar a renderizacao: {error}");
-                event_loop.exit();
+                window.set_title("Falha ao iniciar a GPU - consulte o terminal");
             }
         }
     }
