@@ -1,3 +1,4 @@
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
 use winit::{
@@ -8,7 +9,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::renderer::Renderer;
+use crate::{diagnostics, renderer::Renderer};
 
 pub struct App {
     window: Option<Arc<Window>>,
@@ -37,25 +38,35 @@ impl ApplicationHandler for App {
         let window = match event_loop.create_window(attributes) {
             Ok(window) => Arc::new(window),
             Err(error) => {
-                eprintln!("Falha ao criar a janela: {error}");
+                diagnostics::record(&format!("Falha ao criar a janela: {error}"));
                 event_loop.exit();
                 return;
             }
         };
 
-        // Mantem a janela aberta se a inicializacao grafica falhar, para que
-        // a mensagem de erro possa ser consultada no terminal em vez de a
-        // aplicacao simplesmente abrir e fechar.
         self.window = Some(window.clone());
+        diagnostics::record("Janela criada. Iniciando renderer.");
 
-        match pollster::block_on(Renderer::new(window.clone())) {
-            Ok(renderer) => {
+        // Captura falhas/panics do driver ou da inicializacao do wgpu para
+        // registrar a causa em arquivo, em vez de encerrar sem diagnostico.
+        match catch_unwind(AssertUnwindSafe(|| {
+            pollster::block_on(Renderer::new(window.clone()))
+        })) {
+            Ok(Ok(renderer)) => {
+                diagnostics::record("Renderer inicializado com sucesso.");
                 self.renderer = Some(renderer);
                 window.request_redraw();
             }
-            Err(error) => {
-                eprintln!("Falha ao inicializar a renderizacao: {error}");
-                window.set_title("Falha ao iniciar a GPU - consulte o terminal");
+            Ok(Err(error)) => {
+                diagnostics::record(&format!("Falha ao inicializar a renderizacao: {error}"));
+                window.set_title("Falha grafica - veja teste_caminho.log");
+            }
+            Err(payload) => {
+                let message = diagnostics::panic_message(payload.as_ref());
+                diagnostics::record(&format!(
+                    "PANIC capturado durante a inicializacao do renderer: {message}"
+                ));
+                window.set_title("Panic grafico - veja teste_caminho.log");
             }
         }
     }
@@ -85,10 +96,22 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::RedrawRequested => {
-                if let Some(renderer) = self.renderer.as_mut() {
-                    renderer.render();
+                let render_result = self.renderer.as_mut().map(|renderer| {
+                    catch_unwind(AssertUnwindSafe(|| renderer.render()))
+                });
+
+                if let Some(Err(payload)) = render_result {
+                    let message = diagnostics::panic_message(payload.as_ref());
+                    diagnostics::record(&format!(
+                        "PANIC capturado durante a renderizacao: {message}"
+                    ));
+                    self.renderer = None;
+                    window.set_title("Panic durante renderizacao - veja teste_caminho.log");
                 }
-                window.request_redraw();
+
+                if self.renderer.is_some() {
+                    window.request_redraw();
+                }
             }
 
             WindowEvent::Occluded(false) => window.request_redraw(),
