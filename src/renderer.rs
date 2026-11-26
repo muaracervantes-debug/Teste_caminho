@@ -55,14 +55,54 @@ impl Renderer {
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(window.clone())?;
 
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
+        // Alguns computadores possuem mais de um adaptador ou nao conseguem
+        // disponibilizar o adaptador de alto desempenho para esta janela.
+        // Tentamos primeiro a GPU principal e depois um adaptador compativel
+        // de baixo consumo/fallback, evitando encerrar o programa na inicializacao.
+        let adapter_options = |power_preference, force_fallback_adapter| {
+            wgpu::RequestAdapterOptions {
+                power_preference,
                 compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
+                force_fallback_adapter,
                 apply_limit_buckets: false,
-            })
-            .await?;
+            }
+        };
+
+        let adapter = match instance
+            .request_adapter(&adapter_options(wgpu::PowerPreference::HighPerformance, false))
+            .await
+        {
+            Ok(adapter) => adapter,
+            Err(primary_error) => {
+                eprintln!(
+                    "Adaptador de alto desempenho indisponivel ({primary_error}). Tentando alternativa..."
+                );
+
+                match instance
+                    .request_adapter(&adapter_options(wgpu::PowerPreference::LowPower, false))
+                    .await
+                {
+                    Ok(adapter) => adapter,
+                    Err(secondary_error) => {
+                        eprintln!(
+                            "Adaptador de baixo consumo indisponivel ({secondary_error}). Tentando fallback..."
+                        );
+
+                        instance
+                            .request_adapter(&adapter_options(
+                                wgpu::PowerPreference::LowPower,
+                                true,
+                            ))
+                            .await
+                            .map_err(|fallback_error| {
+                                format!(
+                                    "Nenhum adaptador grafico compativel foi encontrado.                                      Alto desempenho: {primary_error}.                                      Baixo consumo: {secondary_error}.                                      Fallback: {fallback_error}."
+                                )
+                            })?
+                    }
+                }
+            }
+        };
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
@@ -288,7 +328,7 @@ impl Renderer {
 
 fn camera_matrix(width: u32, height: u32) -> Mat4 {
     let aspect = width as f32 / height.max(1) as f32;
-    let projection = Mat4::perspective_rh_gl(45.0_f32.to_radians(), aspect, 0.1, 100.0);
+    let projection = Mat4::perspective_rh(45.0_f32.to_radians(), aspect, 0.1, 100.0);
     let view = Mat4::look_at_rh(
         Vec3::new(4.0, 3.0, 5.0),
         Vec3::ZERO,
