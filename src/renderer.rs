@@ -60,6 +60,7 @@ impl Renderer {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
             })
             .await?;
 
@@ -68,12 +69,10 @@ impl Renderer {
                 label: Some("main-device"),
                 required_features: wgpu::Features::empty(),
                 required_limits: wgpu::Limits::default(),
-                default_queue: wgpu::QueueDescriptor {
-                    label: Some("main-queue"),
-                },
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
                 memory_hints: wgpu::MemoryHints::Performance,
                 trace: wgpu::Trace::Off,
+                ..Default::default()
             })
             .await?;
 
@@ -128,7 +127,7 @@ impl Renderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("main-pipeline-layout"),
-            bind_group_layouts: &[&camera_layout],
+            bind_group_layouts: &[Some(&camera_layout)],
             immediate_size: 0,
         });
 
@@ -139,7 +138,7 @@ impl Renderer {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
-                buffers: &[Vertex::layout()],
+                buffers: &[Some(Vertex::layout())],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -162,8 +161,8 @@ impl Renderer {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -289,7 +288,7 @@ impl Renderer {
 
 fn camera_matrix(width: u32, height: u32) -> Mat4 {
     let aspect = width as f32 / height.max(1) as f32;
-    let projection = Mat4::perspective_rh(45.0_f32.to_radians(), aspect, 0.1, 100.0);
+    let projection = Mat4::perspective_rh_gl(45.0_f32.to_radians(), aspect, 0.1, 100.0);
     let view = Mat4::look_at_rh(
         Vec3::new(4.0, 3.0, 5.0),
         Vec3::ZERO,
