@@ -4,6 +4,8 @@ use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
 
+use crate::diagnostics;
+
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
@@ -48,12 +50,14 @@ pub struct Renderer {
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Result<Self, Box<dyn Error>> {
+        diagnostics::record("Renderer: iniciando criacao da instancia wgpu.");
         let size = window.inner_size();
         let width = size.width.max(1);
         let height = size.height.max(1);
 
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(window.clone())?;
+        diagnostics::record("Renderer: surface da janela criada.");
 
         // Alguns computadores possuem mais de um adaptador ou nao conseguem
         // disponibilizar o adaptador de alto desempenho para esta janela.
@@ -104,6 +108,16 @@ impl Renderer {
             }
         };
 
+        let adapter_info = adapter.get_info();
+        diagnostics::record(&format!(
+            "Renderer: adaptador selecionado: {}; tipo: {:?}; backend: {:?}; driver: {} ({})",
+            adapter_info.name,
+            adapter_info.device_type,
+            adapter_info.backend,
+            adapter_info.driver,
+            adapter_info.driver_info
+        ));
+
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("main-device"),
@@ -115,6 +129,7 @@ impl Renderer {
                 ..Default::default()
             })
             .await?;
+        diagnostics::record("Renderer: dispositivo e fila GPU criados.");
 
         let mut config = surface
             .get_default_config(&adapter, width, height)
@@ -125,7 +140,12 @@ impl Renderer {
             config.format = format;
         }
 
+        diagnostics::record(&format!(
+            "Renderer: configurando surface {}x{} no formato {:?}.",
+            config.width, config.height, config.format
+        ));
         surface.configure(&device, &config);
+        diagnostics::record("Renderer: surface configurada.");
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("basic-3d-shader"),
@@ -171,6 +191,7 @@ impl Renderer {
             immediate_size: 0,
         });
 
+        diagnostics::record("Renderer: criando pipeline de renderizacao.");
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("main-render-pipeline"),
             layout: Some(&pipeline_layout),
@@ -227,6 +248,9 @@ impl Renderer {
         });
 
         let depth_view = create_depth_view(&device, width, height);
+        diagnostics::record("Renderer: buffers, pipeline e depth texture criados.");
+
+        diagnostics::record("Renderer: inicializacao concluida.");
 
         Ok(Self {
             _instance: instance,
