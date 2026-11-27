@@ -1,0 +1,13 @@
+[package]
+name = "teste_caminho"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.87"
+description = "Prototipo de mundo 3D procedural dividido em chunks"
+
+[dependencies]
+bytemuck = { version = "1", features = ["derive"] }
+glam = "0.30.9"
+pollster = "1"
+wgpu = "30.0.2"
+winit = "0.30.13"
