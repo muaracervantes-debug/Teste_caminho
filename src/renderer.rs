@@ -11,14 +11,15 @@ use crate::{camera::Camera, diagnostics};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
+pub(crate) struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 3],
+    pub normal: [f32; 3],
 }
 
 impl Vertex {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+    const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x3];
 
     fn layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -255,18 +256,22 @@ impl Renderer {
             cache: None,
         });
 
-        let vertices = cube_vertices();
-        let indices = cube_indices();
+        let terrain = crate::terrain::build_mesh();
+        diagnostics::record(&format!(
+            "Renderer: terreno inicial gerado com {} vertices e {} triangulos.",
+            terrain.vertices.len(),
+            terrain.indices.len() / 3
+        ));
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("test-cube-vertices"),
-            contents: bytemuck::cast_slice(&vertices),
+            label: Some("terrain-vertices"),
+            contents: bytemuck::cast_slice(&terrain.vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("test-cube-indices"),
-            contents: bytemuck::cast_slice(&indices),
+            label: Some("terrain-indices"),
+            contents: bytemuck::cast_slice(&terrain.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -285,7 +290,7 @@ impl Renderer {
             render_pipeline,
             vertex_buffer,
             index_buffer,
-            index_count: indices.len() as u32,
+            index_count: terrain.indices.len() as u32,
             camera_buffer,
             camera_bind_group,
             depth_view,
@@ -396,7 +401,7 @@ impl Renderer {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..self.index_count, 0, 0..1);
         }
 
@@ -429,54 +434,3 @@ fn create_depth_view(
     texture.create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-fn cube_vertices() -> [Vertex; 24] {
-    let red = [0.90, 0.28, 0.22];
-    let green = [0.28, 0.78, 0.40];
-    let blue = [0.24, 0.48, 0.92];
-    let yellow = [0.92, 0.76, 0.24];
-    let cyan = [0.22, 0.76, 0.82];
-    let purple = [0.68, 0.36, 0.86];
-
-    [
-        Vertex { position: [-1.0, -1.0,  1.0], color: red },
-        Vertex { position: [ 1.0, -1.0,  1.0], color: red },
-        Vertex { position: [ 1.0,  1.0,  1.0], color: red },
-        Vertex { position: [-1.0,  1.0,  1.0], color: red },
-
-        Vertex { position: [ 1.0, -1.0, -1.0], color: green },
-        Vertex { position: [-1.0, -1.0, -1.0], color: green },
-        Vertex { position: [-1.0,  1.0, -1.0], color: green },
-        Vertex { position: [ 1.0,  1.0, -1.0], color: green },
-
-        Vertex { position: [-1.0, -1.0, -1.0], color: blue },
-        Vertex { position: [-1.0, -1.0,  1.0], color: blue },
-        Vertex { position: [-1.0,  1.0,  1.0], color: blue },
-        Vertex { position: [-1.0,  1.0, -1.0], color: blue },
-
-        Vertex { position: [ 1.0, -1.0,  1.0], color: yellow },
-        Vertex { position: [ 1.0, -1.0, -1.0], color: yellow },
-        Vertex { position: [ 1.0,  1.0, -1.0], color: yellow },
-        Vertex { position: [ 1.0,  1.0,  1.0], color: yellow },
-
-        Vertex { position: [-1.0,  1.0,  1.0], color: cyan },
-        Vertex { position: [ 1.0,  1.0,  1.0], color: cyan },
-        Vertex { position: [ 1.0,  1.0, -1.0], color: cyan },
-        Vertex { position: [-1.0,  1.0, -1.0], color: cyan },
-
-        Vertex { position: [-1.0, -1.0, -1.0], color: purple },
-        Vertex { position: [ 1.0, -1.0, -1.0], color: purple },
-        Vertex { position: [ 1.0, -1.0,  1.0], color: purple },
-        Vertex { position: [-1.0, -1.0,  1.0], color: purple },
-    ]
-}
-
-fn cube_indices() -> [u16; 36] {
-    [
-        0, 1, 2, 0, 2, 3,
-        4, 5, 6, 4, 6, 7,
-        8, 9, 10, 8, 10, 11,
-        12, 13, 14, 12, 14, 15,
-        16, 17, 18, 16, 18, 19,
-        20, 21, 22, 20, 22, 23,
-    ]
-}
