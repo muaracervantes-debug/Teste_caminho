@@ -23,7 +23,7 @@ Não são utilizadas engines de jogos.
 - [x] Teste de renderização 3D com cubo, buffer de profundidade e câmera inicial.
 - [x] Compilação e execução no Windows.
 
-No Windows, a inicialização gráfica utiliza Direct3D 12. O cubo é somente uma geometria temporária para validar o pipeline e será substituído pelo terreno nas próximas etapas.
+No Windows, a inicialização gráfica utiliza Direct3D 12. A malha de terreno atual é uma demonstração de relevo suave, usada para validar geometria, normais e iluminação. A geração procedural com seed e o sistema de chunks serão implementados em etapas posteriores.
 
 ### Etapa 2 — Câmera 3D
 
@@ -35,6 +35,17 @@ No Windows, a inicialização gráfica utiliza Direct3D 12. O cubo é somente um
 - [x] Limites de zoom e testes unitários básicos.
 
 Controles: WASD/setas movem a câmera, Q/E giram a visão, roda do mouse aproxima/afasta e Esc fecha a aplicação.
+
+### Etapa 3 — Terreno básico
+
+- [x] Malha contínua de terreno com 64 × 64 células.
+- [x] Variação de altura para demonstrar planícies e ondulações.
+- [x] Normais calculadas a partir das amostras vizinhas.
+- [x] Iluminação direcional simples no shader.
+- [x] Cores variando conforme a altura.
+- [x] Testes para quantidade de vértices/índices, valores finitos e limites dos índices.
+
+O relevo atual é propositalmente simples e determinístico. Ele não é ainda o gerador procedural final: seed configurável, ruído em múltiplas escalas, biomas e continuidade entre chunks serão tratados nas próximas etapas.
 
 ## Executar no Windows
 
@@ -66,6 +77,7 @@ src/
 ├── diagnostics.rs     # Registro de erros e panics
 ├── main.rs            # Ponto de entrada
 ├── renderer.rs        # Inicialização e renderização wgpu
+├── terrain.rs         # Geração da malha inicial de terreno
 └── shaders/
     └── basic.wgsl     # Shader inicial
 ```
