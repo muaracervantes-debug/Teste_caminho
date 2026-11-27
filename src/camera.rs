@@ -7,8 +7,8 @@ use winit::{
 };
 
 const MIN_DISTANCE: f32 = 4.0;
-const MAX_DISTANCE: f32 = 80.0;
-const DEFAULT_DISTANCE: f32 = 9.0;
+const MAX_DISTANCE: f32 = 100.0;
+const DEFAULT_DISTANCE: f32 = 24.0;
 const DEFAULT_PITCH: f32 = 55.0_f32.to_radians();
 const MOVEMENT_SPEED: f32 = 5.5;
 const ROTATION_SPEED: f32 = 1.4;
