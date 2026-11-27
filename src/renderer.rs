@@ -55,7 +55,24 @@ impl Renderer {
         let width = size.width.max(1);
         let height = size.height.max(1);
 
-        let instance = wgpu::Instance::default();
+        // No Windows, priorizamos DX12. O log do usuario mostrou que o
+        // backend padrao escolheu Vulkan na Intel UHD e a execucao parou
+        // imediatamente durante request_device().
+        let mut instance_descriptor =
+            wgpu::InstanceDescriptor::new_without_display_handle();
+
+        #[cfg(target_os = "windows")]
+        {
+            instance_descriptor.backends = wgpu::Backends::DX12;
+            diagnostics::record("Renderer: backend grafico restrito a DirectX 12 no Windows.");
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            diagnostics::record("Renderer: usando os backends graficos padrao da plataforma.");
+        }
+
+        let instance = wgpu::Instance::new(instance_descriptor);
         let surface = instance.create_surface(window.clone())?;
         diagnostics::record("Renderer: surface da janela criada.");
 
@@ -118,6 +135,7 @@ impl Renderer {
             adapter_info.driver_info
         ));
 
+        diagnostics::record("Renderer: solicitando criacao do dispositivo GPU.");
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("main-device"),
