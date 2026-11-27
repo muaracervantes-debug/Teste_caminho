@@ -86,7 +86,10 @@ impl ApplicationHandler for App {
         }
 
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                diagnostics::record("Evento CloseRequested recebido pela janela.");
+                event_loop.exit();
+            },
 
             WindowEvent::Resized(size) => {
                 if let Some(renderer) = self.renderer.as_mut() {
