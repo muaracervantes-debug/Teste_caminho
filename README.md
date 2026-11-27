@@ -16,16 +16,25 @@ Não são utilizadas engines de jogos.
 
 ### Etapa 1 — Fundação gráfica
 
-Em desenvolvimento na branch `feat/phase-01-foundation`.
-
 - [x] Estrutura inicial Cargo.
 - [x] Ciclo de vida da janela com winit.
 - [x] Inicialização do dispositivo e da superfície wgpu.
 - [x] Pipeline gráfico com shader WGSL.
-- [x] Teste de renderização 3D com cubo, buffer de profundidade e câmera fixa.
-- [ ] Validar compilação e execução no Windows.
+- [x] Teste de renderização 3D com cubo, buffer de profundidade e câmera inicial.
+- [x] Compilação e execução no Windows.
 
-O cubo é somente uma geometria temporária para validar o pipeline. Ele será substituído pelo terreno nas próximas etapas.
+No Windows, a inicialização gráfica utiliza Direct3D 12. O cubo é somente uma geometria temporária para validar o pipeline e será substituído pelo terreno nas próximas etapas.
+
+### Etapa 2 — Câmera 3D
+
+- [x] Câmera em perspectiva com ângulo superior.
+- [x] Movimentação horizontal com WASD ou setas.
+- [x] Rotação horizontal com Q/E.
+- [x] Zoom com a roda do mouse.
+- [x] Atualização da matriz de câmera conforme entrada e redimensionamento.
+- [x] Limites de zoom e testes unitários básicos.
+
+Controles: WASD/setas movem a câmera, Q/E giram a visão, roda do mouse aproxima/afasta e Esc fecha a aplicação.
 
 ## Executar no Windows
 
@@ -52,7 +61,9 @@ cargo build --release
 
 ```text
 src/
-├── app.rs             # Janela e ciclo de vida da aplicação
+├── app.rs             # Janela, eventos e ciclo de vida da aplicação
+├── camera.rs          # Câmera 3D e controles
+├── diagnostics.rs     # Registro de erros e panics
 ├── main.rs            # Ponto de entrada
 ├── renderer.rs        # Inicialização e renderização wgpu
 └── shaders/
@@ -63,7 +74,7 @@ Os módulos de mundo, chunks, geração procedural, obstáculos e navegação se
 
 ## Próximas etapas
 
-1. Câmera 3D e controles.
+1. [x] Câmera 3D e controles.
 2. Terreno básico com relevo.
 3. Divisão em chunks.
 4. Geração procedural reproduzível por seed.
