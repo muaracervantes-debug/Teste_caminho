@@ -2,9 +2,13 @@ use std::{borrow::Cow, error::Error, sync::Arc};
 
 use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::{
+    dpi::PhysicalSize,
+    event::{KeyEvent, MouseScrollDelta},
+    window::Window,
+};
 
-use crate::diagnostics;
+use crate::{camera::Camera, diagnostics};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -46,6 +50,7 @@ pub struct Renderer {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     depth_view: wgpu::TextureView,
+    camera: Camera,
 }
 
 impl Renderer {
@@ -170,8 +175,9 @@ impl Renderer {
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shaders/basic.wgsl"))),
         });
 
+        let camera = Camera::new();
         let camera_uniform = CameraUniform {
-            view_projection: camera_matrix(width, height).to_cols_array_2d(),
+            view_projection: camera.view_projection(width, height).to_cols_array_2d(),
         };
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -284,6 +290,7 @@ impl Renderer {
             camera_buffer,
             camera_bind_group,
             depth_view,
+            camera,
         })
     }
 
@@ -298,7 +305,39 @@ impl Renderer {
         self.depth_view = create_depth_view(&self.device, size.width, size.height);
 
         let uniform = CameraUniform {
-            view_projection: camera_matrix(size.width, size.height).to_cols_array_2d(),
+            view_projection: self.camera.view_projection(size.width, size.height).to_cols_array_2d(),
+        };
+
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::bytes_of(&uniform));
+    }
+
+    pub fn handle_keyboard_input(&mut self, event: &KeyEvent) {
+        self.camera.process_keyboard(event);
+    }
+
+    pub fn handle_mouse_wheel(&mut self, delta: &MouseScrollDelta) {
+        if self.camera.process_mouse_wheel(delta) {
+            self.write_camera_uniform();
+        }
+    }
+
+    pub fn clear_camera_input(&mut self) {
+        self.camera.clear_pressed_keys();
+    }
+
+    pub fn update(&mut self, delta_seconds: f32) {
+        if self.camera.update(delta_seconds) {
+            self.write_camera_uniform();
+        }
+    }
+
+    fn write_camera_uniform(&self) {
+        let uniform = CameraUniform {
+            view_projection: self
+                .camera
+                .view_projection(self.config.width, self.config.height)
+                .to_cols_array_2d(),
         };
 
         self.queue
@@ -366,18 +405,6 @@ impl Renderer {
         self.window.pre_present_notify();
         self.queue.present(frame);
     }
-}
-
-fn camera_matrix(width: u32, height: u32) -> Mat4 {
-    let aspect = width as f32 / height.max(1) as f32;
-    let projection = Mat4::perspective_rh(45.0_f32.to_radians(), aspect, 0.1, 100.0);
-    let view = Mat4::look_at_rh(
-        Vec3::new(4.0, 3.0, 5.0),
-        Vec3::ZERO,
-        Vec3::Y,
-    );
-
-    projection * view
 }
 
 fn create_depth_view(
