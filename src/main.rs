@@ -2,6 +2,7 @@ mod app;
 mod camera;
 mod diagnostics;
 mod renderer;
+mod terrain;
 
 use std::error::Error;
 use winit::event_loop::EventLoop;
