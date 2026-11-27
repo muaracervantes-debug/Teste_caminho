@@ -1,6 +1,5 @@
 use std::{borrow::Cow, error::Error, sync::Arc};
 
-use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalSize,
